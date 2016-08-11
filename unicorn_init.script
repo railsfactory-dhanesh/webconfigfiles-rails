@@ -1,0 +1,44 @@
+#!/bin/bash
+#!/usr/bin/env  /home/deployuser/.rvm/gems/ruby-2.2.1@global/bin/ruby_executable_hooks
+####To Start Stop Restart Unicorn
+PATH=$PATH
+KILL=/bin/kill
+APP_ROOT=/var/www/apps/app_path/current
+PID=$APP_ROOT/tmp/pids/unicorn.pid
+NAME=unicorn
+UNICORN=/home/deployuser/.rvm/gems/ruby-2.3.0-preview1/bin/unicorn_rails
+BUNDLE=/home/deployuser/.rvm/wrappers/ruby-2.3.0-preview1/bundle
+# Using the lsb functions to perform the operations.
+. /lib/lsb/init-functions
+
+
+sig () {
+  test -s "$PID" && kill -$1 `cat $PID`
+}
+
+case "$1" in
+        start)
+                echo "Starting unicorn..."
+                if [ "$(id -u)" = "USER-ID" ]; then # Update the User ID
+                cd $APP_ROOT && bundle exec $UNICORN -D -E production -c $APP_ROOT/config/unicorn.rb
+                else
+                su - deployuser -c "cd $APP_ROOT && $BUNDLE exec $UNICORN -D -E production -c $APP_ROOT/config/unicorn.rb"
+                fi
+                ;;
+        stop)
+                sig QUIT && echo "Stopped Unicorn" && exit 0
+                echo >&2 "Unicorn Not running"
+                ;;
+        restart)
+                $0 stop
+                sleep 3s
+                $0 start
+                ;;
+        status)
+		status_of_proc -p $PID "$UNICORN" "$NAME" && exit 0 || exit $?
+                ;;
+        *)
+                echo "Usage: $0 {start|stop|restart|status}"
+                ;;
+esac
+
